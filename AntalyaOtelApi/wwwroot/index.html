@@ -1,0 +1,292 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antalya Otel - Yönetim Paneli</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .card-stat {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="text-primary fw-bold mb-0">🏨 Antalya Otel Yönetim Paneli</h2>
+            <a href="/swagger" target="_blank" class="btn btn-outline-secondary btn-sm">Swagger API Dokümantasyonu ↗</a>
+        </div>
+
+        <!-- DASHBOARD İSTATİSTİKLER -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card card-stat bg-white p-3 text-center border-start border-primary border-4">
+                    <span class="text-muted small">Toplam Oda</span>
+                    <h3 id="statToplamOda" class="fw-bold text-dark mt-1">-</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-stat bg-white p-3 text-center border-start border-success border-4">
+                    <span class="text-muted small">Aktif Rezervasyon</span>
+                    <h3 id="statAktifRez" class="fw-bold text-success mt-1">-</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-stat bg-white p-3 text-center border-start border-danger border-4">
+                    <span class="text-muted small">İptal Edilenler</span>
+                    <h3 id="statIptalRez" class="fw-bold text-danger mt-1">-</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-stat bg-white p-3 text-center border-start border-warning border-4">
+                    <span class="text-muted small">Kasa / Toplam Ciro</span>
+                    <h3 id="statCiro" class="fw-bold text-dark mt-1">-</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÜSAİT ODA ARAMA VE HIZLI SATIŞ -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="m-0 fw-bold text-dark">🔍 Müsait Oda Sorgula & Rezervasyon Oluştur</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Giriş Tarihi</label>
+                        <input type="date" id="girisTarihi" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Çıkış Tarihi</label>
+                        <input type="date" id="cikisTarihi" class="form-control">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button onclick="musaitOdalariGetir()" class="btn btn-primary w-100 fw-bold">Boş Odaları Göster</button>
+                    </div>
+                </div>
+
+                <div class="mt-4" id="musaitOdaSonuc" style="display:none;">
+                    <h6 class="fw-bold text-secondary">Müsait Odalar:</h6>
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Oda No</th>
+                                <th>Kat</th>
+                                <th>Tip</th>
+                                <th>Gecelik</th>
+                                <th>Toplam Tutar</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="musaitOdaListesi"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- AKTİF REZERVASYONLAR VE İPTAL İŞLEMİ -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="m-0 fw-bold text-dark">📋 Sistemdeki Aktif Rezervasyonlar</h5>
+                <button onclick="rezervasyonlariGetir()" class="btn btn-sm btn-outline-primary">Listeyi Yenile</button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Kayıt No</th>
+                                <th>Misafir</th>
+                                <th>Telefon</th>
+                                <th>Oda</th>
+                                <th>Tarih Aralığı</th>
+                                <th>Tutar</th>
+                                <th>İptal İşlemi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rezervasyonListesi"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sayfa açıldığında bugünün ve 3 gün sonrasının tarihini kutulara otomatik ata
+        window.onload = function () {
+            const bugun = new Date();
+            const ucGunSonra = new Date();
+            ucGunSonra.setDate(bugun.getDate() + 3);
+
+            document.getElementById('girisTarihi').value = bugun.toISOString().split('T')[0];
+            document.getElementById('cikisTarihi').value = ucGunSonra.toISOString().split('T')[0];
+
+            istatistikleriGetir();
+            rezervasyonlariGetir();
+        };
+
+        // 1. Dashboard İstatistiklerini Getir
+        async function istatistikleriGetir() {
+            try {
+                const res = await fetch('/api/Raporlar/ozet');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('statToplamOda').innerText = data.toplamOdaSayisi;
+                    document.getElementById('statAktifRez').innerText = data.aktifRezervasyonSayisi;
+                    document.getElementById('statIptalRez').innerText = data.iptalEdilenRezervasyonSayisi;
+                    document.getElementById('statCiro').innerText = Number(data.toplamKazanilanCiro).toLocaleString('tr-TR') + ' TL';
+                }
+            } catch (err) {
+                console.error("İstatistik hatası:", err);
+            }
+        }
+
+        // 2. Aktif Rezervasyonları Listele
+        async function rezervasyonlariGetir() {
+            const tbody = document.getElementById('rezervasyonListesi');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3">Yükleniyor...</td></tr>';
+
+            try {
+                const res = await fetch('/api/Rezervasyonlar');
+                if (!res.ok) throw new Error('Sunucu hatası');
+
+                const liste = await res.json();
+                tbody.innerHTML = '';
+
+                if (liste.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Şu an aktif hiçbir rezervasyon yok. Yukarıdan bir oda seçip rezervasyon yapabilirsiniz.</td></tr>';
+                    return;
+                }
+
+                liste.forEach(rez => {
+                    const giris = rez.girisTarihi.split('T')[0];
+                    const cikis = rez.cikisTarihi.split('T')[0];
+                    const tutar = rez.toplamTutar ?? rez.ToplamTutar;
+
+                    tbody.innerHTML += `
+                            <tr>
+                                <td><span class="badge bg-secondary">#${rez.rezervasyonId}</span></td>
+                                <td class="fw-bold">${rez.musteriTamAd}</td>
+                                <td>${rez.musteriTelefon}</td>
+                                <td>Oda ${rez.odaNo} (${rez.odaTipiAdi}) - Kat: ${rez.kat}</td>
+                                <td>${giris} / ${cikis}</td>
+                                <td class="fw-bold text-success">${Number(tutar).toLocaleString('tr-TR')} TL</td>
+                                <td>
+                                    <button onclick="rezervasyonIptalEt(${rez.rezervasyonId})" class="btn btn-sm btn-danger px-3">
+                                        ❌ İptal Et
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                });
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">Veriler alınırken hata oluştu: ${err.message}</td></tr>`;
+            }
+        }
+
+        // 3. Müsait Odaları Ara
+        async function musaitOdalariGetir() {
+            const giris = document.getElementById('girisTarihi').value;
+            const cikis = document.getElementById('cikisTarihi').value;
+
+            if (!giris || !cikis) {
+                alert('Tarihleri eksiksiz girin.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/Rezervasyonlar/musait-odalar?girisTarihi=${giris}&cikisTarihi=${cikis}`);
+                if (!res.ok) {
+                    const err = await res.text();
+                    alert(err);
+                    return;
+                }
+
+                const odalar = await res.json();
+                const tbody = document.getElementById('musaitOdaListesi');
+                tbody.innerHTML = '';
+
+                if (odalar.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Bu tarihler arasında boş oda kalmadı!</td></tr>';
+                } else {
+                    odalar.forEach(oda => {
+                        tbody.innerHTML += `
+                                <tr>
+                                    <td class="fw-bold">${oda.odaNo}</td>
+                                    <td>${oda.kat}. Kat</td>
+                                    <td><span class="badge bg-info text-dark">${oda.odaTipiAdi}</span></td>
+                                    <td>${oda.gunlukFiyat} TL</td>
+                                    <td class="fw-bold text-primary">${Number(oda.tahminiToplamFiyat).toLocaleString('tr-TR')} TL</td>
+                                    <td>
+                                        <button onclick="hizliRezervasyonYap(${oda.odaId})" class="btn btn-sm btn-success">
+                                            ✅ Rezerve Et
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                    });
+                }
+                document.getElementById('musaitOdaSonuc').style.display = 'block';
+            } catch (err) {
+                alert('Oda sorgulama hatası: ' + err.message);
+            }
+        }
+
+        // 4. Hızlı Rezervasyon Oluştur
+        async function hizliRezervasyonYap(odaId) {
+            const giris = document.getElementById('girisTarihi').value;
+            const cikis = document.getElementById('cikisTarihi').value;
+
+            const talep = {
+                musteriId: 1, // 1 numaralı test müşterimiz
+                odaId: odaId,
+                girisTarihi: giris,
+                cikisTarihi: cikis
+            };
+
+            const res = await fetch('/api/Rezervasyonlar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(talep)
+            });
+
+            if (res.ok) {
+                alert('Rezervasyon oluşturuldu!');
+                musaitOdalariGetir();
+                rezervasyonlariGetir();
+                istatistikleriGetir();
+            } else {
+                const err = await res.text();
+                alert('Kayıt Başarısız: ' + err);
+            }
+        }
+
+        // 5. Rezervasyon İptal Et (Soft Delete)
+        async function rezervasyonIptalEt(id) {
+            if (!confirm(`#${id} numaralı rezervasyonu iptal etmek istediğinize emin misiniz?`)) return;
+
+            const res = await fetch(`/api/Rezervasyonlar/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert('Rezervasyon iptal edildi, oda boşa çıkarıldı.');
+                rezervasyonlariGetir();
+                istatistikleriGetir();
+                // Eğer arama açıksa odayı tekrar listelemek için yenile
+                if (document.getElementById('musaitOdaSonuc').style.display === 'block') {
+                    musaitOdalariGetir();
+                }
+            } else {
+                const err = await res.text();
+                alert('İptal Başarısız: ' + err);
+            }
+        }
+    </script>
+</body>
+</html>
